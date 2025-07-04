@@ -14,7 +14,17 @@ resource "aws_iam_user_policy" "web_manager_policy" {
     Version = "2012-10-17",
     Statement = [
       {
-        Sid    = "S3ReadAndVersioningAccess",
+        Sid    = "IAMReadAccess",
+        Effect = "Allow",
+        Action = [
+          "iam:ListUsers",
+          "iam:ListUserPolicies",
+          "iam:GetUserPolicy"
+        ],
+        Resource = "*"
+      },
+      {
+        Sid    = "S3ReadOnly",
         Effect = "Allow",
         Action = [
           "s3:ListBucket",
@@ -26,16 +36,27 @@ resource "aws_iam_user_policy" "web_manager_policy" {
         Resource = "*"
       },
       {
-        Sid    = "CloudFormationAndIAMAccess",
+        Sid    = "CloudFormationLimited",
         Effect = "Allow",
         Action = [
           "cloudformation:CreateStack",
-          "iam:CreateRole",
-          "iam:PutRolePolicy",
-          "iam:PassRole",
-          "sts:AssumeRole"
+          "cloudformation:DescribeStacks",
+          "cloudformation:GetTemplate"
         ],
         Resource = "*"
+      },
+      {
+        Sid    = "AssumeAndPassOnlyExploitRole",
+        Effect = "Allow",
+        Action = [
+          "sts:AssumeRole",
+          "iam:PassRole",
+          "iam:GetRole",
+          "iam:CreateRole",
+          "iam:TagRole",
+          "iam:PutRolePolicy"
+        ],
+        Resource = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/ExploitBypassRole"
       }
     ]
   })

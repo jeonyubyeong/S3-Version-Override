@@ -20,8 +20,14 @@ variable "flag_value" {
   type        = string
 }
 
+variable "stack_name" {
+  description = "Name of the stack."
+  default     = "CloudGoat"
+  type        = string
+}
+
 variable "scenario_name" {
-  description = "Scenario name for metadata or tagging."
+  description = "Name of the scenario."
   default     = "s3-version-override"
   type        = string
 }

@@ -5,10 +5,6 @@ resource "aws_s3_bucket" "versioned_bucket" {
   tags = {
     Scenario = var.scenario_name
   }
-
-  lifecycle {
-    prevent_destroy = true
-  }
 }
 
 resource "aws_s3_bucket_ownership_controls" "ownership" {
@@ -42,6 +38,8 @@ resource "aws_s3_bucket_policy" "public_read" {
       }
     ]
   })
+
+  depends_on = [aws_s3_bucket_public_access_block.public_access]
 }
 
 resource "aws_s3_bucket_website_configuration" "website" {
@@ -63,7 +61,6 @@ resource "aws_s3_bucket_versioning" "versioning" {
   depends_on = [aws_s3_bucket.versioned_bucket]
 }
 
-# 관리자용 index.html (먼저 업로드됨 → 이전 버전)
 resource "aws_s3_object" "index_admin" {
   bucket       = aws_s3_bucket.versioned_bucket.id
   key          = "index.html"
@@ -73,7 +70,6 @@ resource "aws_s3_object" "index_admin" {
   depends_on = [aws_s3_bucket_versioning.versioning]
 }
 
-# 정상 페이지 index.html (마지막 업로드 → 최신 버전 + Lock 적용)
 resource "aws_s3_object" "index_normal" {
   bucket       = aws_s3_bucket.versioned_bucket.id
   key          = "index.html"
