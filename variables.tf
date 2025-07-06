@@ -14,6 +14,11 @@ variable "cgid" {
   type        = string
 }
 
+variable "cg_whitelist" {
+  description = "User's public IP address(es)"
+  type        = list(string)
+}
+
 variable "flag_value" {
   description = "The flag to be shown when index.html is restored."
   default     = "FLAG{restored-secret-admin-index}"
