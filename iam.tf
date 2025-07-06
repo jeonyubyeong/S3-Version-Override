@@ -31,10 +31,16 @@ resource "aws_iam_user_policy" "web_manager_policy" {
           "s3:GetObject",
           "s3:GetObjectVersion",
           "s3:ListBucketVersions",
-          "s3:PutObject"
+          "s3:GetObjectRetention"
         ],
         Resource = "*"
       },
+      {
+        Sid    = "DenyPutObjectOnBypassBucket",
+        Effect = "Deny",
+        Action = "s3:PutObject"
+        Resource = "arn:aws:s3:::cg-s3-version-bypass-*/*"
+    	},
       {
         Sid    = "CloudFormationLimited",
         Effect = "Allow",
