@@ -31,7 +31,7 @@ resource "aws_iam_user_policy" "web_manager_policy" {
           "s3:GetObject",
           "s3:GetObjectVersion",
           "s3:ListBucketVersions",
-          "s3:GetObjectRetention"
+          "s3:PutObject"
         ],
         Resource = "*"
       },
