@@ -33,7 +33,7 @@ resource "aws_iam_user_policy" "web_manager_policy" {
           "s3:ListBucketVersions",
           "s3:GetObjectRetention"
         ],
-        Resource = "*"
+        Resource = "arn:aws:s3:::cg-s3-version-bypass-*/*"
       },
       {
         Sid    = "DenyPutObjectOnBypassBucket",
