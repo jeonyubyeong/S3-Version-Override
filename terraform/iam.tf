@@ -48,7 +48,7 @@ resource "aws_iam_user_policy" "web_manager_policy" {
           "cloudformation:DescribeStacks",
           "cloudformation:GetTemplate"
         ],
-        Resource = "arn:aws:cloudformation:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:stack/*/*"
+        Resource = "arn:aws:cloudformation:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:stack/*/*"
       },
       {
         Sid    = "AssumeAndPassOnlyExploitRole",
