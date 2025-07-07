@@ -17,9 +17,8 @@ resource "aws_iam_user_policy" "web_manager_policy" {
         Sid    = "IAMReadAccess",
         Effect = "Allow",
         Action = [
-          "iam:ListUsers",
-          "iam:ListUserPolicies",
-          "iam:GetUserPolicy"
+          "iam:List*",
+          "iam:Get*"
         ],
         Resource = "*"
       },
@@ -49,7 +48,7 @@ resource "aws_iam_user_policy" "web_manager_policy" {
           "cloudformation:DescribeStacks",
           "cloudformation:GetTemplate"
         ],
-        Resource = "*"
+        Resource = "arn:aws:cloudformation:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:stack/*/*"
       },
       {
         Sid    = "AssumeAndPassOnlyExploitRole",
