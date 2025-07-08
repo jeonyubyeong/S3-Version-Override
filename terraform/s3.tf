@@ -24,7 +24,7 @@ resource "aws_s3_bucket_public_access_block" "public_access" {
   restrict_public_buckets = false
 }
 
-resource "aws_s3_bucket_policy" "public_read" {
+resource "aws_s3_bucket_policy" "public_read_with_flag_deny" {
   bucket = aws_s3_bucket.versioned_bucket.id
 
   policy = jsonencode({
@@ -35,6 +35,17 @@ resource "aws_s3_bucket_policy" "public_read" {
         Principal = "*",
         Action    = ["s3:GetObject"],
         Resource  = "${aws_s3_bucket.versioned_bucket.arn}/*"
+      },
+      {
+        Effect = "Deny",
+        Principal = "*",
+        Action = "s3:GetObject",
+        Resource = "${aws_s3_bucket.versioned_bucket.arn}/flag.txt",
+        Condition = {
+          StringEquals = {
+            "aws:PrincipalType" = ["IAMUser", "AssumedRole"]
+          }
+        }
       }
     ]
   })
@@ -64,8 +75,40 @@ resource "aws_s3_bucket_versioning" "versioning" {
 resource "aws_s3_object" "index_admin" {
   bucket       = aws_s3_bucket.versioned_bucket.id
   key          = "index.html"
-  content      = "<h1>${var.flag_value}</h1>"
   content_type = "text/html"
+  content      = <<EOT
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>S3 Version Flag</title>
+  <style>
+    body {
+      font-family: monospace;
+      background: #111;
+      color: #0f0;
+      text-align: center;
+      padding-top: 100px;
+    }
+  </style>
+</head>
+<body>
+  <h1>🔓 S3 Flag Viewer</h1>
+  <div id="flag">Loading flag...</div>
+
+  <script>
+    fetch("flag.txt")
+      .then(res => res.text())
+      .then(flag => {
+        document.getElementById("flag").innerHTML = "✅ FLAG: " + flag;
+      })
+      .catch(err => {
+        document.getElementById("flag").innerHTML = "❌ Failed to load flag: " + err;
+      });
+  </script>
+</body>
+</html>
+EOT
 
   depends_on = [aws_s3_bucket_versioning.versioning]
 }
@@ -83,4 +126,13 @@ resource "aws_s3_object" "index_normal" {
     aws_s3_object.index_admin,
     aws_s3_bucket_versioning.versioning
   ]
+}
+
+resource "aws_s3_object" "flag_file" {
+  bucket       = aws_s3_bucket.versioned_bucket.id
+  key          = "flag.txt"
+  content      = "CTF{version_bypass_s3_only}"
+  content_type = "text/plain"
+
+  depends_on = [aws_s3_bucket_versioning.versioning]
 }

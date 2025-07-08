@@ -19,12 +19,6 @@ variable "cg_whitelist" {
   type        = list(string)
 }
 
-variable "flag_value" {
-  description = "The flag to be shown when index.html is restored."
-  default     = "FLAG{restored-secret-admin-index}"
-  type        = string
-}
-
 variable "stack_name" {
   description = "Name of the stack."
   default     = "CloudGoat"
