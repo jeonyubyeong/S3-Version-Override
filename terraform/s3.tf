@@ -42,8 +42,21 @@ resource "aws_s3_bucket_policy" "public_read_with_flag_deny" {
         Action = "s3:GetObject",
         Resource = "${aws_s3_bucket.versioned_bucket.arn}/flag.txt",
         Condition = {
+          StringLike = {
+            "aws:PrincipalArn" = [
+              "arn:aws:iam::*:user/*"
+            ]
+          }
+        }
+      },
+      {
+        Effect = "Deny",
+        Principal = "*",
+        Action = "s3:GetObject",
+        Resource = "${aws_s3_bucket.versioned_bucket.arn}/flag.txt",
+        Condition = {
           StringEquals = {
-            "aws:PrincipalType" = ["IAMUser", "AssumedRole"]
+            "aws:PrincipalType" = "AssumedRole"
           }
         }
       }
@@ -52,6 +65,7 @@ resource "aws_s3_bucket_policy" "public_read_with_flag_deny" {
 
   depends_on = [aws_s3_bucket_public_access_block.public_access]
 }
+
 
 resource "aws_s3_bucket_website_configuration" "website" {
   bucket = aws_s3_bucket.versioned_bucket.id
