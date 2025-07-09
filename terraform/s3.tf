@@ -24,6 +24,16 @@ resource "aws_s3_bucket_public_access_block" "public_access" {
   restrict_public_buckets = false
 }
 
+resource "aws_s3_object" "flag_file" {
+  bucket       = aws_s3_bucket.versioned_bucket.id
+  key          = "flag.txt"
+  content      = "CTF{version_bypass_s3_only}"
+  content_type = "text/plain"
+
+  depends_on = [aws_s3_bucket_versioning.versioning]
+}
+
+
 resource "aws_s3_bucket_policy" "public_read_with_flag_deny" {
   bucket = aws_s3_bucket.versioned_bucket.id
 
@@ -63,7 +73,10 @@ resource "aws_s3_bucket_policy" "public_read_with_flag_deny" {
     ]
   })
 
-  depends_on = [aws_s3_bucket_public_access_block.public_access]
+  depends_on = [
+    aws_s3_object.flag_file,
+    aws_s3_bucket_public_access_block.public_access
+  ]
 }
 
 
@@ -140,13 +153,4 @@ resource "aws_s3_object" "index_normal" {
     aws_s3_object.index_admin,
     aws_s3_bucket_versioning.versioning
   ]
-}
-
-resource "aws_s3_object" "flag_file" {
-  bucket       = aws_s3_bucket.versioned_bucket.id
-  key          = "flag.txt"
-  content      = "CTF{version_bypass_s3_only}"
-  content_type = "text/plain"
-
-  depends_on = [aws_s3_bucket_versioning.versioning]
 }
