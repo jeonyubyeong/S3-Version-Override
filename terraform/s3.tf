@@ -27,7 +27,7 @@ resource "aws_s3_bucket_public_access_block" "public_access" {
 resource "aws_s3_object" "flag_file" {
   bucket       = aws_s3_bucket.versioned_bucket.id
   key          = "flag.txt"
-  content      = "CTF{version_bypass_s3_only}"
+  content      = "Flag{version_bypass_s3_only}"
   content_type = "text/plain"
 
   depends_on = [aws_s3_bucket_versioning.versioning]

@@ -27,6 +27,6 @@ variable "stack_name" {
 
 variable "scenario_name" {
   description = "Name of the scenario."
-  default     = "s3-version-override"
+  default     = "s3_version_rollback_via_cfn"
   type        = string
 }
