@@ -43,32 +43,22 @@ resource "aws_s3_bucket_policy" "public_read_with_flag_deny" {
       {
         Effect    = "Allow",
         Principal = "*",
-        Action    = ["s3:GetObject"],
-        Resource  = "${aws_s3_bucket.versioned_bucket.arn}/*"
+        Action    = "s3:GetObject",
+        Resource  = "${aws_s3_bucket.versioned_bucket.arn}/index.html"
       },
       {
         Effect = "Deny",
         Principal = "*",
         Action = "s3:GetObject",
-        Resource = "${aws_s3_bucket.versioned_bucket.arn}/flag.txt",
-        Condition = {
-          StringLike = {
-            "aws:PrincipalArn" = [
-              "arn:aws:iam::*:user/*"
-            ]
-          }
-        }
+        Resource = "${aws_s3_bucket.versioned_bucket.arn}/flag.txt"
       },
       {
-        Effect = "Deny",
-        Principal = "*",
+        Effect = "Allow",
+        Principal = {
+          AWS = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/lambda-role"
+        },
         Action = "s3:GetObject",
-        Resource = "${aws_s3_bucket.versioned_bucket.arn}/flag.txt",
-        Condition = {
-          StringEquals = {
-            "aws:PrincipalType" = "AssumedRole"
-          }
-        }
+        Resource = "${aws_s3_bucket.versioned_bucket.arn}/flag.txt"
       }
     ]
   })
@@ -103,6 +93,7 @@ resource "aws_s3_object" "index_admin" {
   bucket       = aws_s3_bucket.versioned_bucket.id
   key          = "index.html"
   content_type = "text/html"
+
   content      = <<EOT
 <!DOCTYPE html>
 <html>
@@ -124,10 +115,10 @@ resource "aws_s3_object" "index_admin" {
   <div id="flag">Loading flag...</div>
 
   <script>
-    fetch("flag.txt")
-      .then(res => res.text())
-      .then(flag => {
-        document.getElementById("flag").innerHTML = "✅ FLAG: " + flag;
+    fetch("https://${aws_api_gateway_rest_api.flag_api.id}.execute-api.${var.region}.amazonaws.com/prod/flag")
+      .then(res => res.json())
+      .then(data => {
+        document.getElementById("flag").innerHTML = "✅ FLAG: " + data.flag;
       })
       .catch(err => {
         document.getElementById("flag").innerHTML = "❌ Failed to load flag: " + err;
@@ -137,7 +128,10 @@ resource "aws_s3_object" "index_admin" {
 </html>
 EOT
 
-  depends_on = [aws_s3_bucket_versioning.versioning]
+  depends_on = [
+    aws_api_gateway_deployment.api_deployment,
+    aws_s3_bucket_versioning.versioning
+  ]
 }
 
 resource "aws_s3_object" "index_normal" {
