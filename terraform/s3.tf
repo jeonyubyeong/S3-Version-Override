@@ -34,31 +34,37 @@ resource "aws_s3_object" "flag_file" {
 }
 
 
-resource "aws_s3_bucket_policy" "public_read_with_flag_deny" {
+resource "aws_s3_bucket_policy" "public_read_with_flag_restrict" {
   bucket = aws_s3_bucket.versioned_bucket.id
 
   policy = jsonencode({
     Version = "2012-10-17",
     Statement = [
       {
-        Effect    = "Allow",
-        Principal = "*",
-        Action    = "s3:GetObject",
+        Sid       = "AllowIndexAccess"
+        Effect    = "Allow"
+        Principal = "*"
+        Action    = "s3:GetObject"
         Resource  = "${aws_s3_bucket.versioned_bucket.arn}/index.html"
       },
       {
-        Effect = "Deny",
-        Principal = "*",
-        Action = "s3:GetObject",
-        Resource = "${aws_s3_bucket.versioned_bucket.arn}/flag.txt"
+        Sid       = "AllowFlagOnlyFromIndex"
+        Effect    = "Allow"
+        Principal = "*"
+        Action    = "s3:GetObject"
+        Resource  = "${aws_s3_bucket.versioned_bucket.arn}/flag.txt"
+        Condition = {
+          StringLike = {
+            "aws:Referer" = "http://${aws_s3_bucket.versioned_bucket.bucket}.s3-website.${var.region}.amazonaws.com/*"
+          }
+        }
       },
       {
-        Effect = "Allow",
-        Principal = {
-          AWS = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/lambda-role"
-        },
-        Action = "s3:GetObject",
-        Resource = "${aws_s3_bucket.versioned_bucket.arn}/flag.txt"
+        Sid       = "DenyFlagEverywhereElse"
+        Effect    = "Deny"
+        Principal = "*"
+        Action    = "s3:GetObject"
+        Resource  = "${aws_s3_bucket.versioned_bucket.arn}/flag.txt"
       }
     ]
   })
@@ -115,10 +121,10 @@ resource "aws_s3_object" "index_admin" {
   <div id="flag">Loading flag...</div>
 
   <script>
-    fetch("https://${aws_api_gateway_rest_api.flag_api.id}.execute-api.${var.region}.amazonaws.com/prod/flag")
-      .then(res => res.json())
-      .then(data => {
-        document.getElementById("flag").innerHTML = "✅ FLAG: " + data.flag;
+    fetch("flag.txt")
+      .then(res => res.text())
+      .then(flag => {
+        document.getElementById("flag").innerHTML = "✅ FLAG: " + flag;
       })
       .catch(err => {
         document.getElementById("flag").innerHTML = "❌ Failed to load flag: " + err;
