@@ -48,23 +48,69 @@ resource "aws_s3_bucket_policy" "public_read_with_flag_restrict" {
         Resource  = "${aws_s3_bucket.versioned_bucket.arn}/index.html"
       },
       {
-        Sid       = "AllowFlagOnlyFromIndex"
+        Sid       = "AllowFlagOnlyFromWebReferer"
         Effect    = "Allow"
         Principal = "*"
         Action    = "s3:GetObject"
         Resource  = "${aws_s3_bucket.versioned_bucket.arn}/flag.txt"
         Condition = {
           StringLike = {
-            "aws:Referer" = "http://${aws_s3_bucket.versioned_bucket.bucket}.s3-website.${var.region}.amazonaws.com/*"
+            "aws:Referer" = "http://${aws_s3_bucket.versioned_bucket.bucket}.s3-website-${var.region}.amazonaws.com/*"
           }
         }
       },
       {
-        Sid       = "DenyFlagEverywhereElse"
+        Sid       = "DenyFlagIfNoReferer"
         Effect    = "Deny"
         Principal = "*"
         Action    = "s3:GetObject"
         Resource  = "${aws_s3_bucket.versioned_bucket.arn}/flag.txt"
+        Condition = {
+          Null = {
+            "aws:Referer" = "true"
+          }
+        }
+      },
+      {
+        Sid       = "DenyFlagFromIAMUsers"
+        Effect    = "Deny"
+        Principal = "*"
+        Action    = "s3:GetObject"
+        Resource  = "${aws_s3_bucket.versioned_bucket.arn}/flag.txt"
+        Condition = {
+          StringLike = {
+            "aws:PrincipalArn" = "arn:aws:iam::*:user/*"
+          }
+        }
+      },
+      {
+        Sid       = "DenyFlagFromAssumedRole"
+        Effect    = "Deny"
+        Principal = "*"
+        Action    = "s3:GetObject"
+        Resource  = "${aws_s3_bucket.versioned_bucket.arn}/flag.txt"
+        Condition = {
+          StringEquals = {
+            "aws:PrincipalType" = "AssumedRole"
+          }
+        }
+      },
+      {
+        Sid       = "DenyFlagFromAuthenticatedUsers"
+        Effect    = "Deny"
+        Principal = {
+          AWS = "*"
+        }
+        Action    = "s3:GetObject"
+        Resource  = "${aws_s3_bucket.versioned_bucket.arn}/flag.txt"
+        Condition = {
+          Bool = {
+            "aws:PrincipalIsAWSService" = "false"
+          },
+          StringNotEquals = {
+            "aws:userid" = "anonymous"
+          }
+        }
       }
     ]
   })
@@ -73,8 +119,7 @@ resource "aws_s3_bucket_policy" "public_read_with_flag_restrict" {
     aws_s3_object.flag_file,
     aws_s3_bucket_public_access_block.public_access
   ]
-}
-
+} 
 
 resource "aws_s3_bucket_website_configuration" "website" {
   bucket = aws_s3_bucket.versioned_bucket.id
@@ -135,7 +180,6 @@ resource "aws_s3_object" "index_admin" {
 EOT
 
   depends_on = [
-    aws_api_gateway_deployment.api_deployment,
     aws_s3_bucket_versioning.versioning
   ]
 }

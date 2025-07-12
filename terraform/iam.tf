@@ -137,7 +137,12 @@ resource "aws_iam_user_policy" "web_manager_role_policy" {
           "iam:TagRole",
           "iam:PutRolePolicy"
         ],
-        Resource = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/CloudFormationRole"
+        Resource = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/CloudFormationRole",
+        Condition = {
+          "ForAnyValue:StringEquals" = {
+            "aws:CalledVia" = "cloudformation.amazonaws.com"
+          }
+        }
       },
       {
         Sid    = "ForcePermissionsBoundaryOnCreateRole",
