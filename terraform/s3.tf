@@ -1,200 +1,137 @@
-resource "aws_s3_bucket" "versioned_bucket" {
-  bucket              = "cg-s3-version-bypass-${var.cgid}"
-  object_lock_enabled = true
-
+resource "aws_s3_bucket" "index_bucket" {
+  bucket = "cg-s3-version-index-${var.cgid}"
   tags = {
-    Scenario = var.scenario_name
+    Purpose = "Public Index"
   }
 }
 
-resource "aws_s3_bucket_ownership_controls" "ownership" {
-  bucket = aws_s3_bucket.versioned_bucket.id
-
-  rule {
-    object_ownership = "BucketOwnerPreferred"
-  }
-}
-
-resource "aws_s3_bucket_public_access_block" "public_access" {
-  bucket = aws_s3_bucket.versioned_bucket.id
-
-  block_public_acls       = false
-  block_public_policy     = false
-  ignore_public_acls      = false
-  restrict_public_buckets = false
-}
-
-resource "aws_s3_object" "flag_file" {
-  bucket       = aws_s3_bucket.versioned_bucket.id
-  key          = "flag.txt"
-  content      = "Flag{version_bypass_s3_only}"
-  content_type = "text/plain"
-
-  depends_on = [aws_s3_bucket_versioning.versioning]
-}
-
-
-resource "aws_s3_bucket_policy" "public_read_with_flag_restrict" {
-  bucket = aws_s3_bucket.versioned_bucket.id
-
-  policy = jsonencode({
-    Version = "2012-10-17",
-    Statement = [
-      {
-        Sid       = "AllowIndexAccess"
-        Effect    = "Allow"
-        Principal = "*"
-        Action    = "s3:GetObject"
-        Resource  = "${aws_s3_bucket.versioned_bucket.arn}/index.html"
-      },
-      {
-        Sid       = "AllowFlagOnlyFromWebReferer"
-        Effect    = "Allow"
-        Principal = "*"
-        Action    = "s3:GetObject"
-        Resource  = "${aws_s3_bucket.versioned_bucket.arn}/flag.txt"
-        Condition = {
-          StringLike = {
-            "aws:Referer" = "http://${aws_s3_bucket.versioned_bucket.bucket}.s3-website-${var.region}.amazonaws.com/*"
-          }
-        }
-      },
-      {
-        Sid       = "DenyFlagIfNoReferer"
-        Effect    = "Deny"
-        Principal = "*"
-        Action    = "s3:GetObject"
-        Resource  = "${aws_s3_bucket.versioned_bucket.arn}/flag.txt"
-        Condition = {
-          Null = {
-            "aws:Referer" = "true"
-          }
-        }
-      },
-      {
-        Sid       = "DenyFlagFromIAMUsers"
-        Effect    = "Deny"
-        Principal = "*"
-        Action    = "s3:GetObject"
-        Resource  = "${aws_s3_bucket.versioned_bucket.arn}/flag.txt"
-        Condition = {
-          StringLike = {
-            "aws:PrincipalArn" = "arn:aws:iam::*:user/*"
-          }
-        }
-      },
-      {
-        Sid       = "DenyFlagFromAssumedRole"
-        Effect    = "Deny"
-        Principal = "*"
-        Action    = "s3:GetObject"
-        Resource  = "${aws_s3_bucket.versioned_bucket.arn}/flag.txt"
-        Condition = {
-          StringEquals = {
-            "aws:PrincipalType" = "AssumedRole"
-          }
-        }
-      },
-      {
-        Sid       = "DenyFlagFromAuthenticatedUsers"
-        Effect    = "Deny"
-        Principal = {
-          AWS = "*"
-        }
-        Action    = "s3:GetObject"
-        Resource  = "${aws_s3_bucket.versioned_bucket.arn}/flag.txt"
-        Condition = {
-          Bool = {
-            "aws:PrincipalIsAWSService" = "false"
-          },
-          StringNotEquals = {
-            "aws:userid" = "anonymous"
-          }
-        }
-      }
-    ]
-  })
-
-  depends_on = [
-    aws_s3_object.flag_file,
-    aws_s3_bucket_public_access_block.public_access
-  ]
-} 
-
-resource "aws_s3_bucket_website_configuration" "website" {
-  bucket = aws_s3_bucket.versioned_bucket.id
-
+resource "aws_s3_bucket_website_configuration" "index_website" {
+  bucket = aws_s3_bucket.index_bucket.id
   index_document {
     suffix = "index.html"
   }
 }
 
-resource "aws_s3_bucket_versioning" "versioning" {
-  bucket = aws_s3_bucket.versioned_bucket.id
-
-  versioning_configuration {
-    status     = "Enabled"
-    mfa_delete = "Disabled"
-  }
-
-  depends_on = [aws_s3_bucket.versioned_bucket]
-}
-
-resource "aws_s3_object" "index_admin" {
-  bucket       = aws_s3_bucket.versioned_bucket.id
+resource "aws_s3_object" "index_html" {
+  bucket       = aws_s3_bucket.index_bucket.id
   key          = "index.html"
-  content_type = "text/html"
-
+  content_type = "text/html"  
   content      = <<EOT
 <!DOCTYPE html>
 <html>
-<head>
-  <meta charset="UTF-8">
-  <title>S3 Version Flag</title>
-  <style>
-    body {
-      font-family: monospace;
-      background: #111;
-      color: #0f0;
-      text-align: center;
-      padding-top: 100px;
-    }
-  </style>
-</head>
-<body>
+<head><meta charset="UTF-8"><title>S3 Flag Viewer</title></head>
+<body style="background:#111;color:#0f0;text-align:center;padding-top:100px;font-family:monospace">
   <h1>🔓 S3 Flag Viewer</h1>
   <div id="flag">Loading flag...</div>
-
   <script>
-    fetch("flag.txt")
-      .then(res => res.text())
-      .then(flag => {
-        document.getElementById("flag").innerHTML = "✅ FLAG: " + flag;
-      })
-      .catch(err => {
-        document.getElementById("flag").innerHTML = "❌ Failed to load flag: " + err;
-      });
+    fetch("https://${aws_s3_bucket.flag_bucket.bucket}.s3.amazonaws.com/flag.txt")
+    .then(r => r.text()).then(t => {
+      document.getElementById("flag").innerHTML = "✅ FLAG: " + t;
+    }).catch(e => {
+      document.getElementById("flag").innerHTML = "❌ Failed to load flag";
+    });
   </script>
 </body>
 </html>
 EOT
-
-  depends_on = [
-    aws_s3_bucket_versioning.versioning
-  ]
 }
 
-resource "aws_s3_object" "index_normal" {
-  bucket       = aws_s3_bucket.versioned_bucket.id
-  key          = "index.html"
-  content      = "<h1>Welcome to our site</h1>"
-  content_type = "text/html"
+resource "aws_s3_bucket" "flag_bucket" {
+  bucket = "cg-s3-version-flag-${var.cgid}"
+  tags = {
+    Purpose = "Flag Only"
+  }
+}
 
-  object_lock_mode               = "GOVERNANCE"
-  object_lock_retain_until_date = "2099-12-31T00:00:00Z"
+resource "aws_s3_object" "flag_txt" {
+  bucket       = aws_s3_bucket.flag_bucket.id
+  key          = "flag.txt"
+  content      = "Flag{secure_fetch_only}"
+  content_type = "text/plain"
+}
 
-  depends_on = [
-    aws_s3_object.index_admin,
-    aws_s3_bucket_versioning.versioning
-  ]
+resource "aws_s3_bucket_policy" "flag_bucket_policy" {
+  bucket = aws_s3_bucket.flag_bucket.id
+
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Sid: "AllowOnlyFromReferer",
+        Effect: "Allow",
+        Principal: "*",
+        Action: "s3:GetObject",
+        Resource: "${aws_s3_bucket.flag_bucket.arn}/flag.txt",
+        Condition: {
+          StringLike: {
+            "aws:Referer": "http://${aws_s3_bucket.index_bucket.bucket}.s3-website.${var.region}.amazonaws.com/*"
+          }
+        }
+      },
+      {
+        Sid: "DenyWithoutReferer",
+        Effect: "Deny",
+        Principal: "*",
+        Action: "s3:GetObject",
+        Resource: "${aws_s3_bucket.flag_bucket.arn}/flag.txt",
+        Condition: {
+          Null: {
+            "aws:Referer": "true"
+          }
+        }
+      },
+      {
+        Sid: "DenyFromIAMUsers",
+        Effect: "Deny",
+        Principal: "*",
+        Action: "s3:GetObject",
+        Resource: "${aws_s3_bucket.flag_bucket.arn}/flag.txt",
+        Condition: {
+          StringLike: {
+            "aws:PrincipalArn": "arn:aws:iam::*:user/*"
+          }
+        }
+      },
+      {
+        Sid: "DenyFromAssumedRoles",
+        Effect: "Deny",
+        Principal: "*",
+        Action: "s3:GetObject",
+        Resource: "${aws_s3_bucket.flag_bucket.arn}/flag.txt",
+        Condition: {
+          StringEquals: {
+            "aws:PrincipalType": "AssumedRole"
+          }
+        }
+      },
+      {
+        Sid: "DenyFromAuthenticatedUsers",
+        Effect: "Deny",
+        Principal: {
+          AWS: "*"
+        },
+        Action: "s3:GetObject",
+        Resource: "${aws_s3_bucket.flag_bucket.arn}/flag.txt",
+        Condition: {
+          Bool: {
+            "aws:PrincipalIsAWSService": "false"
+          },
+          StringNotEquals: {
+            "aws:userid": "anonymous"
+          }
+        }
+      }
+    ]
+  })
+}
+
+resource "aws_s3_bucket_cors_configuration" "flag_cors" {
+  bucket = aws_s3_bucket.flag_bucket.id
+
+  cors_rule {
+    allowed_headers = ["*"]
+    allowed_methods = ["GET"]
+    allowed_origins = ["http://${aws_s3_bucket.index_bucket.bucket}.s3-website-${var.region}.amazonaws.com"]
+    max_age_seconds = 3000
+  }
 }

@@ -7,10 +7,7 @@ resource "aws_iam_policy" "put_object_boundary" {
       {
         Sid    = "AllowIAMRead",
         Effect = "Allow",
-        Action = [
-          "iam:List*",
-          "iam:Get*"
-        ],
+        Action = ["iam:List*", "iam:Get*"],
         Resource = "*"
       },
       {
@@ -28,9 +25,7 @@ resource "aws_iam_policy" "put_object_boundary" {
       {
         Sid    = "AllowPutObject",
         Effect = "Allow",
-        Action = [
-          "s3:PutObject"
-        ],
+        Action = ["s3:PutObject"],
         Resource = "arn:aws:s3:::cg-s3-version-bypass-*/*"
       },
       {
@@ -127,10 +122,15 @@ resource "aws_iam_user_policy" "web_manager_role_policy" {
         Resource = "arn:aws:cloudformation:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:stack/*/*"
       },
       {
-        Sid    = "AssumeAndPassOnlyExploitRole",
+        Sid    = "AssumeRoleExplicit",
+        Effect = "Allow",
+        Action = "sts:AssumeRole",
+        Resource = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/CloudFormationRole"
+      },
+      {
+        Sid    = "AllowCloudFormationOnlyForIAMOps",
         Effect = "Allow",
         Action = [
-          "sts:AssumeRole",
           "iam:PassRole",
           "iam:GetRole",
           "iam:CreateRole",
