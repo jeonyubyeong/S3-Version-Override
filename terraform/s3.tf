@@ -12,6 +12,23 @@ resource "aws_s3_bucket_website_configuration" "index_website" {
   }
 }
 
+resource "aws_s3_bucket_policy" "index_bucket_policy" {
+  bucket = aws_s3_bucket.index_bucket.id
+
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Sid: "PublicReadForIndex",
+        Effect: "Allow",
+        Principal: "*",
+        Action: "s3:GetObject",
+        Resource: "${aws_s3_bucket.index_bucket.arn}/*"
+      }
+    ]
+  })
+}
+
 resource "aws_s3_object" "index_html" {
   bucket       = aws_s3_bucket.index_bucket.id
   key          = "index.html"
@@ -43,11 +60,24 @@ resource "aws_s3_bucket" "flag_bucket" {
   }
 }
 
+resource "aws_s3_bucket_public_access_block" "flag_block" {
+  bucket = aws_s3_bucket.flag_bucket.id
+
+  block_public_acls       = false
+  block_public_policy     = false
+  ignore_public_acls      = false
+  restrict_public_buckets = false
+}
+
 resource "aws_s3_object" "flag_txt" {
   bucket       = aws_s3_bucket.flag_bucket.id
   key          = "flag.txt"
   content      = "Flag{secure_fetch_only}"
   content_type = "text/plain"
+  depends_on = [
+    aws_s3_bucket.flag_bucket,
+    aws_s3_bucket_public_access_block.flag_block
+  ]
 }
 
 resource "aws_s3_bucket_policy" "flag_bucket_policy" {
@@ -123,6 +153,9 @@ resource "aws_s3_bucket_policy" "flag_bucket_policy" {
       }
     ]
   })
+    depends_on = [
+    aws_s3_bucket_public_access_block.flag_block
+  ]
 }
 
 resource "aws_s3_bucket_cors_configuration" "flag_cors" {
