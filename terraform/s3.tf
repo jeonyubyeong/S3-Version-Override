@@ -12,8 +12,19 @@ resource "aws_s3_bucket_website_configuration" "index_website" {
   }
 }
 
+resource "aws_s3_bucket_public_access_block" "index_block" {
+  bucket = aws_s3_bucket.index_bucket.id
+
+  block_public_acls       = false
+  block_public_policy     = false
+  ignore_public_acls      = false
+  restrict_public_buckets = false
+}
+
 resource "aws_s3_bucket_policy" "index_bucket_policy" {
   bucket = aws_s3_bucket.index_bucket.id
+
+  depends_on = [aws_s3_bucket_public_access_block.index_block]
 
   policy = jsonencode({
     Version = "2012-10-17",
@@ -83,6 +94,8 @@ resource "aws_s3_object" "flag_txt" {
 resource "aws_s3_bucket_policy" "flag_bucket_policy" {
   bucket = aws_s3_bucket.flag_bucket.id
 
+  depends_on = [aws_s3_bucket_public_access_block.flag_block]
+
   policy = jsonencode({
     Version = "2012-10-17",
     Statement = [
@@ -94,7 +107,7 @@ resource "aws_s3_bucket_policy" "flag_bucket_policy" {
         Resource: "${aws_s3_bucket.flag_bucket.arn}/flag.txt",
         Condition: {
           StringLike: {
-            "aws:Referer": "http://${aws_s3_bucket.index_bucket.bucket}.s3-website.${var.region}.amazonaws.com/*"
+            "aws:Referer": "http://${aws_s3_bucket.index_bucket.bucket}.s3-website-${var.region}.amazonaws.com/*"
           }
         }
       },
@@ -153,9 +166,6 @@ resource "aws_s3_bucket_policy" "flag_bucket_policy" {
       }
     ]
   })
-    depends_on = [
-    aws_s3_bucket_public_access_block.flag_block
-  ]
 }
 
 resource "aws_s3_bucket_cors_configuration" "flag_cors" {
