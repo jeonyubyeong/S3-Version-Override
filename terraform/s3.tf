@@ -5,8 +5,20 @@ resource "aws_s3_bucket" "index_bucket" {
   }
 }
 
+resource "aws_s3_bucket_versioning" "versioning" {
+  bucket = aws_s3_bucket.index_bucket.id
+
+  versioning_configuration {
+    status     = "Enabled"
+    mfa_delete = "Disabled"
+  }
+
+  depends_on = [aws_s3_bucket.index_bucket]
+}
+
 resource "aws_s3_bucket_website_configuration" "index_website" {
   bucket = aws_s3_bucket.index_bucket.id
+
   index_document {
     suffix = "index.html"
   }
@@ -40,10 +52,10 @@ resource "aws_s3_bucket_policy" "index_bucket_policy" {
   })
 }
 
-resource "aws_s3_object" "index_html" {
+resource "aws_s3_object" "index_admin" {
   bucket       = aws_s3_bucket.index_bucket.id
   key          = "index.html"
-  content_type = "text/html"  
+  content_type = "text/html"
   content      = <<EOT
 <!DOCTYPE html>
 <html>
@@ -62,6 +74,23 @@ resource "aws_s3_object" "index_html" {
 </body>
 </html>
 EOT
+
+  depends_on = [aws_s3_bucket_versioning.versioning]
+}
+
+resource "aws_s3_object" "index_normal" {
+  bucket       = aws_s3_bucket.index_bucket.id
+  key          = "index.html"
+  content_type = "text/html"
+  content      = "<h1>Welcome to our site</h1>"
+
+  object_lock_mode               = "GOVERNANCE"
+  object_lock_retain_until_date = "2099-12-31T00:00:00Z"
+
+  depends_on = [
+    aws_s3_object.index_admin,
+    aws_s3_bucket_versioning.versioning
+  ]
 }
 
 resource "aws_s3_bucket" "flag_bucket" {
@@ -83,8 +112,9 @@ resource "aws_s3_bucket_public_access_block" "flag_block" {
 resource "aws_s3_object" "flag_txt" {
   bucket       = aws_s3_bucket.flag_bucket.id
   key          = "flag.txt"
-  content      = "Flag{secure_fetch_only}"
+  content      = "Flag{version_bypass_s3_only}"
   content_type = "text/plain"
+
   depends_on = [
     aws_s3_bucket.flag_bucket,
     aws_s3_bucket_public_access_block.flag_block
