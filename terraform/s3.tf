@@ -45,59 +45,6 @@ resource "aws_s3_bucket_policy" "flag_bucket_policy" {
             "aws:Referer": "http://${aws_s3_bucket.index_bucket.bucket}.s3-website-${var.region}.amazonaws.com/*"
           }
         }
-      },
-      {
-        Sid: "DenyWithoutReferer",
-        Effect: "Deny",
-        Principal: "*",
-        Action: "s3:GetObject",
-        Resource: "${aws_s3_bucket.flag_bucket.arn}/flag.txt",
-        Condition: {
-          Null: {
-            "aws:Referer": "true"
-          }
-        }
-      },
-      {
-        Sid: "DenyFromIAMUsers",
-        Effect: "Deny",
-        Principal: "*",
-        Action: "s3:GetObject",
-        Resource: "${aws_s3_bucket.flag_bucket.arn}/flag.txt",
-        Condition: {
-          StringLike: {
-            "aws:PrincipalArn": "arn:aws:iam::*:user/*"
-          }
-        }
-      },
-      {
-        Sid: "DenyFromAssumedRoles",
-        Effect: "Deny",
-        Principal: "*",
-        Action: "s3:GetObject",
-        Resource: "${aws_s3_bucket.flag_bucket.arn}/flag.txt",
-        Condition: {
-          StringEquals: {
-            "aws:PrincipalType": "AssumedRole"
-          }
-        }
-      },
-      {
-        Sid: "DenyFromAuthenticatedUsers",
-        Effect: "Deny",
-        Principal: {
-          AWS: "*"
-        },
-        Action: "s3:GetObject",
-        Resource: "${aws_s3_bucket.flag_bucket.arn}/flag.txt",
-        Condition: {
-          Bool: {
-            "aws:PrincipalIsAWSService": "false"
-          },
-          StringNotEquals: {
-            "aws:userid": "anonymous"
-          }
-        }
       }
     ]
   })
