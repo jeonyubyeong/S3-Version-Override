@@ -116,6 +116,7 @@ resource "aws_iam_role_policy" "cloudformation_role_policy" {
           "lambda:CreateFunction",
           "lambda:InvokeFunction",
           "lambda:GetFunction",
+          "lambda:DeleteFunction",
           "iam:PassRole"
         ],
         Resource = "*"
