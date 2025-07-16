@@ -8,10 +8,10 @@ resource "aws_s3_bucket" "flag_bucket" {
 resource "aws_s3_bucket_public_access_block" "flag_block" {
   bucket = aws_s3_bucket.flag_bucket.id
 
-  block_public_acls       = false
-  block_public_policy     = false
-  ignore_public_acls      = false
-  restrict_public_buckets = false
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
 }
 
 resource "aws_s3_object" "flag_txt" {
@@ -29,20 +29,20 @@ resource "aws_s3_object" "flag_txt" {
 resource "aws_s3_bucket_policy" "flag_bucket_policy" {
   bucket = aws_s3_bucket.flag_bucket.id
 
-  depends_on = [aws_s3_bucket_public_access_block.flag_block]
-
   policy = jsonencode({
     Version = "2012-10-17",
     Statement = [
       {
-        Sid: "AllowOnlyFromReferer",
+        Sid: "AllowCloudFrontOnly",
         Effect: "Allow",
-        Principal: "*",
+        Principal: {
+          Service: "cloudfront.amazonaws.com"
+        },
         Action: "s3:GetObject",
-        Resource: "${aws_s3_bucket.flag_bucket.arn}/flag.txt",
+        Resource: "${aws_s3_bucket.flag_bucket.arn}/*",
         Condition: {
-          StringLike: {
-            "aws:Referer": "http://${aws_s3_bucket.index_bucket.bucket}.s3-website-${var.region}.amazonaws.com/*"
+          StringEquals = {
+            "AWS:SourceArn" = aws_cloudfront_distribution.flag_distribution.arn
           }
         }
       }
@@ -128,7 +128,7 @@ resource "aws_s3_object" "index_admin" {
   <h1>🔓 S3 Flag Viewer</h1>
   <div id="flag">Loading flag...</div>
   <script>
-    fetch("https://${aws_s3_bucket.flag_bucket.bucket}.s3.amazonaws.com/flag.txt")
+    fetch("https://${aws_cloudfront_distribution.flag_distribution.domain_name}/flag.txt")
     .then(r => r.text()).then(t => {
       document.getElementById("flag").innerHTML = "✅ FLAG: " + t;
     }).catch(e => {
