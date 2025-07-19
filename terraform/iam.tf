@@ -60,6 +60,12 @@ resource "aws_iam_user_policy" "web_manager_role_policy" {
         Resource = "arn:aws:cloudformation:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:stack/*/*"
       },
       {
+        Sid: "LambdaInvokeAllow",
+        Effect: "Allow",
+        Action: "lambda:InvokeFunction",
+        Resource: "arn:aws:lambda:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:function:*"
+      },
+      {
         Sid: "AllowUseOfCFExecutionRole",
         Effect: "Allow",
         Action: [
@@ -114,7 +120,6 @@ resource "aws_iam_role_policy" "cloudformation_role_policy" {
         Effect = "Allow",
         Action = [
           "lambda:CreateFunction",
-          "lambda:InvokeFunction",
           "lambda:GetFunction",
           "lambda:DeleteFunction",
           "iam:PassRole"
@@ -124,7 +129,7 @@ resource "aws_iam_role_policy" "cloudformation_role_policy" {
       {
         Effect = "Allow",
         Action = "iam:PassRole",
-        Resource = "arn:aws:iam::912894834267:role/LambdaPutObjectRole",
+        Resource = "arn:aws:iam::912894834267:role/LambdaPutObjectRole-${var.cgid}",
         Condition = {
           StringEquals = {
             "iam:PassedToService" = "lambda.amazonaws.com"
