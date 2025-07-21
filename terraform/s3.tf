@@ -32,20 +32,18 @@ resource "aws_s3_bucket_policy" "flag_bucket_policy" {
   policy = jsonencode({
     Version = "2012-10-17",
     Statement = [
-      {
-        Sid: "AllowCloudFrontOnly",
-        Effect: "Allow",
-        Principal: {
-          Service: "cloudfront.amazonaws.com"
-        },
-        Action: "s3:GetObject",
-        Resource: "${aws_s3_bucket.flag_bucket.arn}/*",
-        Condition: {
-          StringEquals = {
-            "AWS:SourceArn" = aws_cloudfront_distribution.flag_distribution.arn
+        {
+          "Sid": "AllowFromS3WebsiteOnly",
+          "Effect": "Allow",
+          "Principal": "*",
+          "Action": "s3:GetObject",
+          "Resource": "${aws_s3_bucket.flag_bucket.arn}/*",
+          "Condition": {
+            "StringLike": {
+              "aws:Referer": "http://${aws_s3_bucket.index_bucket.bucket}.s3-website-${var.region}.amazonaws.com"
+            }
           }
         }
-      }
     ]
   })
 }
@@ -128,7 +126,7 @@ resource "aws_s3_object" "index_admin" {
   <h1>🔓 S3 Flag Viewer</h1>
   <div id="flag">Loading flag...</div>
   <script>
-    fetch("https://${aws_cloudfront_distribution.flag_distribution.domain_name}/flag.txt")
+    fetch("https://${aws_s3_bucket.flag_bucket.bucket}/flag.txt")
     .then(r => r.text()).then(t => {
       document.getElementById("flag").innerHTML = "✅ FLAG: " + t;
     }).catch(e => {
