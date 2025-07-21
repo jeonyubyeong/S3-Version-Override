@@ -208,3 +208,4 @@ resource "aws_s3_object" "index_normal" {
     aws_s3_object.index_admin,
     aws_s3_bucket_versioning.versioning
   ]
+}
