@@ -8,10 +8,10 @@ resource "aws_s3_bucket" "flag_bucket" {
 resource "aws_s3_bucket_public_access_block" "flag_block" {
   bucket = aws_s3_bucket.flag_bucket.id
 
-  block_public_acls       = true
-  block_public_policy     = true
-  ignore_public_acls      = true
-  restrict_public_buckets = true
+  block_public_acls       = false
+  block_public_policy     = false
+  ignore_public_acls      = false
+  restrict_public_buckets = false
 }
 
 resource "aws_s3_object" "flag_txt" {
@@ -29,21 +29,76 @@ resource "aws_s3_object" "flag_txt" {
 resource "aws_s3_bucket_policy" "flag_bucket_policy" {
   bucket = aws_s3_bucket.flag_bucket.id
 
+  depends_on = [aws_s3_bucket_public_access_block.flag_block]
+
   policy = jsonencode({
     Version = "2012-10-17",
     Statement = [
-        {
-          "Sid": "AllowFromS3WebsiteOnly",
-          "Effect": "Allow",
-          "Principal": "*",
-          "Action": "s3:GetObject",
-          "Resource": "${aws_s3_bucket.flag_bucket.arn}/*",
-          "Condition": {
-            "StringLike": {
-              "aws:Referer": "http://${aws_s3_bucket.index_bucket.bucket}.s3-website-${var.region}.amazonaws.com"
-            }
+      {
+        Sid: "AllowOnlyFromReferer",
+        Effect: "Allow",
+        Principal: "*",
+        Action: "s3:GetObject",
+        Resource: "${aws_s3_bucket.flag_bucket.arn}/flag.txt",
+        Condition: {
+          StringLike: {
+            "aws:Referer": "http://${aws_s3_bucket.index_bucket.bucket}.s3-website-${var.region}.amazonaws.com/*"
           }
         }
+      },
+      {
+        Sid: "DenyWithoutReferer",
+        Effect: "Deny",
+        Principal: "*",
+        Action: "s3:GetObject",
+        Resource: "${aws_s3_bucket.flag_bucket.arn}/flag.txt",
+        Condition: {
+          Null: {
+            "aws:Referer": "true"
+          }
+        }
+      },
+      {
+        Sid: "DenyFromIAMUsers",
+        Effect: "Deny",
+        Principal: "*",
+        Action: "s3:GetObject",
+        Resource: "${aws_s3_bucket.flag_bucket.arn}/flag.txt",
+        Condition: {
+          StringLike: {
+            "aws:PrincipalArn": "arn:aws:iam::*:user/*"
+          }
+        }
+      },
+      {
+        Sid: "DenyFromAssumedRoles",
+        Effect: "Deny",
+        Principal: "*",
+        Action: "s3:GetObject",
+        Resource: "${aws_s3_bucket.flag_bucket.arn}/flag.txt",
+        Condition: {
+          StringEquals: {
+            "aws:PrincipalType": "AssumedRole"
+          }
+        }
+      },
+      {
+        Sid: "DenyFromAuthenticatedUsers",
+        Effect: "Deny",
+        Principal: {
+          AWS: "*"
+        },
+        Action: "s3:GetObject",
+        Resource: "${aws_s3_bucket.flag_bucket.arn}/flag.txt",
+        Condition: {
+          Bool: {
+            "aws:PrincipalIsAWSService": "false"
+          },
+          StringNotEquals: {
+            "aws:userid": "anonymous"
+          }
+        }
+      }
     ]
   })
 }
@@ -126,7 +181,7 @@ resource "aws_s3_object" "index_admin" {
   <h1>🔓 S3 Flag Viewer</h1>
   <div id="flag">Loading flag...</div>
   <script>
-    fetch("https://${aws_s3_bucket.flag_bucket.bucket}/flag.txt")
+    fetch("https://${aws_s3_bucket.flag_bucket.bucket}.s3.amazonaws.com/flag.txt")
     .then(r => r.text()).then(t => {
       document.getElementById("flag").innerHTML = "✅ FLAG: " + t;
     }).catch(e => {
@@ -153,4 +208,3 @@ resource "aws_s3_object" "index_normal" {
     aws_s3_object.index_admin,
     aws_s3_bucket_versioning.versioning
   ]
-}
